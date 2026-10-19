@@ -59,7 +59,9 @@ import {
   loadPublicSiteConfig,
   adminLoadPurchases,
   adminRevokePurchase,
-  adminGrantManualAccess
+  adminGrantManualAccess,
+  adminCountPurchasesForProduct,
+  adminSetProductStatus
 } from './admin.js';
 import { getImgBBApiKey, setImgBBApiKey, uploadImageToImgBB } from './imgbb.js';
 import { 
@@ -866,12 +868,15 @@ async function renderProductDetailsPage({ params }) {
   `;
 
   try {
+    const authState = getAuthState();
+    const isOwner = authState.user ? await checkUserOwnsProduct(authState.user.uid, productId) : false;
+
     let product = null;
     try {
       const snap = await getDoc(doc(db, 'products', productId));
       if (snap.exists()) {
         const data = snap.data();
-        if (data.status === 'active') {
+        if (data.status === 'active' || isOwner) {
           product = { id: snap.id, ...data };
         }
       }
@@ -890,8 +895,6 @@ async function renderProductDetailsPage({ params }) {
       `;
       return;
     }
-    const authState = getAuthState();
-    const isOwner = authState.user ? await checkUserOwnsProduct(authState.user.uid, product.id) : false;
 
     const cat = guessCategory(product.name);
     const fallbackSrc = getProductFallbackSvg(product.name, cat.type);
@@ -953,6 +956,9 @@ async function renderProductDetailsPage({ params }) {
             <div class="space-y-2">
               <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
                 <span class="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200/50 dark:border-indigo-800/50">${escapeHtml(cat.tag)}</span>
+                ${product.status === 'inactive' ? `
+                  <span class="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">এখন বিক্রির জন্য নেই</span>
+                ` : ''}
                 ${product.version ? `<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-xs">v${escapeHtml(product.version)}</span>` : ''}
                 ${product.fileSize ? `<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-xs">📦 ${escapeHtml(product.fileSize)}</span>` : ''}
                 ${(product.previewUrl && typeof product.previewUrl === 'string' && product.previewUrl.startsWith('https://')) ? `
@@ -980,13 +986,14 @@ async function renderProductDetailsPage({ params }) {
 
             <!-- Actions / Ownership Status -->
             <div class="space-y-3">
-              ${isOwner ? `
-                <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-2 font-bold text-sm">
-                    <span>✓</span> <span>আপনি ইতিমধ্যে এই প্রোডাক্টটি ক্রয় করেছেন!</span>
+              ${(isOwner || product.status === 'inactive') ? `
+                <div class="p-4 rounded-2xl ${product.status === 'inactive' ? 'bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400'} flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                    <span>${product.status === 'inactive' ? 'ℹ️' : '✓'}</span> 
+                    <span>${product.status === 'inactive' ? 'এই প্রোডাক্টটি বর্তমানে বিক্রির জন্য নেই (আপনি ইতিপূর্বে ক্রয় করেছেন)' : 'আপনি ইতিমধ্যে এই প্রোডাক্টটি ক্রয় করেছেন!'}</span>
                   </div>
                   <a href="/my-purchases" class="btn-primary text-xs px-4 py-2 rounded-xl whitespace-nowrap">
-                    ডাউনলোড করুন
+                    ডাউনলোড পেজে যান
                   </a>
                 </div>
               ` : `
@@ -1099,6 +1106,8 @@ async function renderProductDetailsPage({ params }) {
 async function renderCartPage() {
   const main = document.getElementById('app-main');
   if (!main) return;
+
+  setPageMeta({ title: 'শপিং কার্ট | E Product Hub', noindex: true });
 
   main.innerHTML = `
     <div class="max-w-4xl mx-auto space-y-6">
@@ -1243,6 +1252,8 @@ async function renderCartPage() {
 async function renderCheckoutPage({ query }) {
   const main = document.getElementById('app-main');
   if (!main) return;
+
+  setPageMeta({ title: 'চেকআউট ও পেমেন্ট | E Product Hub', noindex: true });
 
   const authState = getAuthState();
   if (!authState.user) {
@@ -1925,6 +1936,8 @@ async function renderMyPurchasesPage() {
   const main = document.getElementById('app-main');
   if (!main) return;
 
+  setPageMeta({ title: 'আমার পারচেজকৃত প্রোডাক্ট | E Product Hub', noindex: true });
+
   main.innerHTML = `
     <div class="max-w-4xl mx-auto space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1981,7 +1994,14 @@ async function renderMyPurchasesPage() {
       <div class="flex items-center gap-4">
         <img src="${getSafeImageUrl(item.product.mainImage, item.product.name, 'code')}" alt="${escapeHtml(item.product.name)}" data-fallback="${getProductFallbackSvg(item.product.name, 'code')}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shrink-0">
         <div class="space-y-1">
-          <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white">${escapeHtml(item.product.name)}</h3>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white">${escapeHtml(item.product.name)}</h3>
+            ${item.product.status === 'inactive' ? `
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                এখন বিক্রির জন্য নেই
+              </span>
+            ` : ''}
+          </div>
           <div class="text-xs text-slate-500 flex flex-wrap items-center gap-3">
             <span>মূল্য: <strong class="text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">${formatBDT(item.price)}</strong></span>
             <span>TrxID: <strong class="font-mono">${escapeHtml(item.trxId)}</strong></span>
@@ -2068,6 +2088,8 @@ async function renderMyPurchasesPage() {
 async function renderProfilePage() {
   const main = document.getElementById('app-main');
   if (!main) return;
+
+  setPageMeta({ title: 'প্রোফাইল | E Product Hub', noindex: true });
 
   const authState = getAuthState();
   const user = authState.user;
@@ -2171,6 +2193,8 @@ function renderLoginPage({ query }) {
   const main = document.getElementById('app-main');
   if (!main) return;
 
+  setPageMeta({ title: 'লগইন | E Product Hub', noindex: true });
+
   const authState = getAuthState();
   const redirectUrl = sanitizeRedirect(query.get('redirect'));
 
@@ -2248,6 +2272,8 @@ function renderLoginPage({ query }) {
 function renderRegisterPage({ query }) {
   const main = document.getElementById('app-main');
   if (!main) return;
+
+  setPageMeta({ title: 'রেজিস্ট্রেশন | E Product Hub', noindex: true });
 
   const authState = getAuthState();
   const redirectUrl = sanitizeRedirect(query.get('redirect'));
@@ -2865,7 +2891,8 @@ async function renderAdminPage() {
 
   setPageMeta({
     title: 'অ্যাডমিন ড্যাশবোর্ড | E Product Hub',
-    description: 'E Product Hub অ্যাডমিন কন্ট্রোল প্যানেল - প্রোডাক্ট, বিক্রয়, ট্রানজ্যাকশন ও সেটিংস।'
+    description: 'E Product Hub অ্যাডমিন কন্ট্রোল প্যানেল - প্রোডাক্ট, বিক্রয়, ট্রানজ্যাকশন ও সেটিংস।',
+    noindex: true
   });
 
   const authState = getAuthState();
@@ -3021,11 +3048,14 @@ async function renderAdminProductsTab(container) {
                     ${formatBDT(p.price)}
                   </td>
                   <td class="p-3 sm:p-4">
-                    <span class="px-2 py-1 rounded-md text-[11px] font-bold ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-500'}">
-                      ${p.status === 'active' ? 'অ্যাক্টিভ' : 'নিষ্ক্রিয়'}
+                    <span class="px-2 py-1 rounded-md text-[11px] font-bold ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/15 text-slate-500 dark:text-slate-400'}">
+                      ${p.status === 'active' ? 'অ্যাক্টিভ' : 'Inactive'}
                     </span>
                   </td>
-                  <td class="p-3 sm:p-4 text-right space-x-2 shrink-0">
+                  <td class="p-3 sm:p-4 text-right space-x-1.5 shrink-0">
+                    <button type="button" class="admin-toggle-prod-status-btn text-xs px-2.5 py-1.5 rounded-lg font-bold transition ${p.status === 'active' ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600'}" data-id="${escapeHtml(p.id)}" data-status="${escapeHtml(p.status || 'active')}">
+                      ${p.status === 'active' ? 'Inactive করুন' : 'সক্রিয় করুন'}
+                    </button>
                     <button type="button" class="admin-edit-prod-btn text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 px-3 py-1.5 rounded-lg font-bold" data-id="${escapeHtml(p.id)}">
                       এডিট
                     </button>
@@ -3098,8 +3128,8 @@ async function renderAdminProductsTab(container) {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium mb-1">সিক্রেট ডাউনলোড লিংক (Drive/Mega/etc) *</label>
-              <input type="url" id="prod-download-url" required value="${escapeHtml(fileData?.downloadUrl || '')}" class="input-field font-mono text-xs" placeholder="https://drive.google.com/...">
+              <label class="block text-xs font-medium mb-1">সিক্রেট ডাউনলোড লিংক (Drive/Mega/etc) ${product ? '(আগের লিংক রাখতে চাইলে খালি রাখুন)' : '*'}</label>
+              <input type="url" id="prod-download-url" ${product ? '' : 'required'} value="" class="input-field font-mono text-xs" placeholder="${product ? 'আগের লিংক বহাল রাখতে খালি রাখুন' : 'https://drive.google.com/...'}">
             </div>
             <div>
               <label class="block text-xs font-medium mb-1">ফাইলের নাম</label>
@@ -3219,20 +3249,64 @@ async function renderAdminProductsTab(container) {
     });
   });
 
-  document.querySelectorAll('.admin-delete-prod-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
+  // One-click toggle active/inactive status
+  document.querySelectorAll('.admin-toggle-prod-status-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
-      const name = btn.getAttribute('data-name');
-      showConfirmDialog({
-        title: 'প্রোডাক্ট ডিলিট',
-        message: `আপনি কি নিশ্চিত যে "${name}" প্রোডাক্টটি ডিলিট করতে চান? এটি সাথে সাথে স্টোর ও ফাইল ডাটাবেজ থেকে মুছে যাবে।`,
-        confirmText: 'হ্যাঁ, মুছুন',
-        onConfirm: async () => {
-          await adminDeleteProduct(id);
-          showToast('প্রোডাক্ট মুছে ফেলা হয়েছে', 'info');
-          renderAdminProductsTab(container);
+      const currentStatus = btn.getAttribute('data-status') || 'active';
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      btn.disabled = true;
+      try {
+        await adminSetProductStatus(id, newStatus);
+        showToast(newStatus === 'active' ? 'প্রোডাক্ট সক্রিয় করা হয়েছে' : 'প্রোডাক্ট Inactive করা হয়েছে', 'success');
+        renderAdminProductsTab(container);
+      } catch (err) {
+        showToast(err.message || 'স্ট্যাটাস পরিবর্তন ব্যর্থ হয়েছে', 'error');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Protected delete flow: checks purchase count before deleting
+  document.querySelectorAll('.admin-delete-prod-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'যাচাই...';
+      try {
+        const count = await adminCountPurchasesForProduct(id);
+        if (count > 0) {
+          showConfirmDialog({
+            title: 'প্রোডাক্ট ডিলিট করা যাবে না',
+            message: `এই প্রোডাক্টের ${count} টি ক্রয় আছে, তাই এটি ডিলিট করা যাবে না। ক্রেতারা যেন ফাইল ডাউনলোড করতে পারে সেজন্য প্রোডাক্টটি Inactive করা হবে।`,
+            confirmText: 'Inactive করুন',
+            cancelText: 'বাতিল',
+            onConfirm: async () => {
+              await adminSetProductStatus(id, 'inactive');
+              showToast('প্রোডাক্টটি Inactive করা হয়েছে', 'info');
+              renderAdminProductsTab(container);
+            }
+          });
+        } else {
+          showConfirmDialog({
+            title: 'প্রোডাক্ট ডিলিট',
+            message: 'এই প্রোডাক্টের কোনো ক্রয় নেই। এটি স্থায়ীভাবে মুছে যাবে।',
+            confirmText: 'হ্যাঁ, মুছুন',
+            cancelText: 'বাতিল',
+            onConfirm: async () => {
+              await adminDeleteProduct(id);
+              showToast('প্রোডাক্ট মুছে ফেলা হয়েছে', 'info');
+              renderAdminProductsTab(container);
+            }
+          });
         }
-      });
+      } catch (err) {
+        showToast(err.message || 'যাচাই ব্যর্থ হয়েছে', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
     });
   });
 }
@@ -4029,11 +4103,16 @@ async function renderAdminImgBBTab(container) {
     if (!file) return;
 
     if (fileNameLabel) fileNameLabel.textContent = file.name;
-    if (progressBox) progressBox.classList.remove('hidden');
+    if (progressBox) {
+      progressBox.textContent = 'ছবি প্রসেসিং হচ্ছে...';
+      progressBox.classList.remove('hidden');
+    }
     if (resultBox) resultBox.classList.add('hidden');
 
     try {
-      const url = await uploadImageToImgBB(file);
+      const url = await uploadImageToImgBB(file, (msg) => {
+        if (progressBox) progressBox.textContent = msg;
+      });
       if (previewImg) previewImg.src = url;
       if (urlInput) urlInput.value = url;
       if (resultBox) resultBox.classList.remove('hidden');

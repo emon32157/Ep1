@@ -53,7 +53,7 @@ export async function loadUserPurchases() {
         }
         return {
           ...purchase,
-          product: product || { name: 'ডিজিটাল প্রোডাক্ট', mainImage: '', price: purchase.price }
+          product: product || { name: 'ডিজিটাল প্রোডাক্ট', mainImage: '', price: purchase.price, status: 'inactive' }
         };
       })
     );

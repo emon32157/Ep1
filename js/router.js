@@ -44,8 +44,10 @@ export function handleRoute() {
   // Scroll to top on page transition
   window.scrollTo({ top: 0, behavior: 'instant' });
 
-  // Restore default SEO meta tags on navigation (route handlers can override)
-  setPageMeta();
+  // Restore default SEO meta tags on navigation with noindex for private/transient routes
+  const NOINDEX_ROUTES = ['/admin', '/checkout', '/cart', '/profile', '/my-purchases', '/login', '/register'];
+  const isNoindexRoute = NOINDEX_ROUTES.some((prefix) => currentPath === prefix || currentPath.startsWith(prefix + '/'));
+  setPageMeta({ noindex: isNoindexRoute });
 
   // Toggle floating WhatsApp button on /admin route
   const waBtn = document.getElementById('floating-whatsapp-btn');

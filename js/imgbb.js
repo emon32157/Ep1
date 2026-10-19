@@ -41,22 +41,163 @@ export async function setImgBBApiKey(apiKey) {
 }
 
 /**
- * Uploads an image file to ImgBB and returns the direct i.ibb.co URL
- * @param {File|Blob} file 
- * @param {Function} onProgress Optional progress callback
- * @returns {Promise<string>} Direct image URL on i.ibb.co
+ * Compresses an image file client-side before uploading:
+ * - Skips GIF, SVG, and files under 300 KB whose longest side <= maxSide
+ * - Decodes with createImageBitmap({ imageOrientation: 'from-image' }), fallback to HTMLImageElement
+ * - Scales down so longest side <= maxSide
+ * - Exports with canvas.toBlob as image/webp quality 0.85 (fallback to image/jpeg 0.85)
+ * - Releases memory (bitmap.close(), URL.revokeObjectURL)
+ * - Returns original file if compression fails or produces a larger file
  */
-export async function uploadImageToImgBB(file, onProgress) {
-  if (!file) throw new Error("অনুগ্রহ করে একটি ছবি নির্বাচন করুন");
+export async function compressImageIfNeeded(file, { maxSide = 1600, onProgress } = {}) {
+  const type = (file.type || '').toLowerCase();
+  const name = (file.name || '').toLowerCase();
 
-  // Validate type
-  if (!file.type.startsWith('image/')) {
-    throw new Error("শুধুমাত্র ইমেজ ফাইল (.jpg, .png, .webp) অনুমোদিত");
+  // Skip compression for GIF and SVG
+  if (type === 'image/gif' || type === 'image/svg+xml' || name.endsWith('.gif') || name.endsWith('.svg')) {
+    return file;
   }
 
-  // Size limit (32MB max on ImgBB)
+  let bitmap = null;
+  let objectUrl = null;
+
+  try {
+    let sourceWidth = 0;
+    let sourceHeight = 0;
+    let sourceDrawable = null;
+
+    if (typeof createImageBitmap === 'function') {
+      try {
+        bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        sourceWidth = bitmap.width;
+        sourceHeight = bitmap.height;
+        sourceDrawable = bitmap;
+      } catch (e) {
+        bitmap = null;
+      }
+    }
+
+    if (!sourceDrawable) {
+      objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+      sourceWidth = img.naturalWidth || img.width;
+      sourceHeight = img.naturalHeight || img.height;
+      sourceDrawable = img;
+    }
+
+    const longestSide = Math.max(sourceWidth, sourceHeight);
+
+    // Skip compression if file < 300 KB AND longest side <= maxSide
+    if (file.size < 300 * 1024 && longestSide <= maxSide) {
+      if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      return file;
+    }
+
+    if (typeof onProgress === 'function') {
+      onProgress('ছবি ছোট করা হচ্ছে...');
+    }
+
+    let targetWidth = sourceWidth;
+    let targetHeight = sourceHeight;
+    if (longestSide > maxSide) {
+      const scale = maxSide / longestSide;
+      targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+      targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas context unavailable');
+    }
+
+    ctx.drawImage(sourceDrawable, 0, 0, targetWidth, targetHeight);
+
+    // Release source image memory immediately
+    if (bitmap && typeof bitmap.close === 'function') {
+      bitmap.close();
+      bitmap = null;
+    }
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    }
+
+    // Export with canvas.toBlob as image/webp quality 0.85 (fallback to image/jpeg 0.85)
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(
+        (b) => {
+          if (b && b.type === 'image/webp') {
+            resolve(b);
+          } else {
+            canvas.toBlob((jpegBlob) => resolve(jpegBlob), 'image/jpeg', 0.85);
+          }
+        },
+        'image/webp',
+        0.85
+      );
+    });
+
+    if (!blob) {
+      return file;
+    }
+
+    // If compressed file is larger than original, keep original
+    if (blob.size >= file.size) {
+      return file;
+    }
+
+    const ext = blob.type === 'image/webp' ? '.webp' : '.jpg';
+    const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image';
+    return new File([blob], `${baseName}${ext}`, { type: blob.type });
+
+  } catch (err) {
+    console.warn("Image compression skipped, falling back to original:", err);
+    return file;
+  } finally {
+    if (bitmap && typeof bitmap.close === 'function') {
+      try { bitmap.close(); } catch (e) {}
+    }
+    if (objectUrl) {
+      try { URL.revokeObjectURL(objectUrl); } catch (e) {}
+    }
+  }
+}
+
+/**
+ * Uploads an image file to ImgBB and returns the direct i.ibb.co URL
+ * @param {File|Blob} file 
+ * @param {Function} [onProgress] Optional progress callback
+ * @param {object} [options]
+ * @param {number} [options.maxSide=1600]
+ * @returns {Promise<string>} Direct image URL on i.ibb.co
+ */
+export async function uploadImageToImgBB(file, onProgress, { maxSide = 1600 } = {}) {
+  if (!file) throw new Error("অনুগ্রহ করে একটি ছবি নির্বাচন করুন");
+
+  // Validate type on original file
+  if (!file.type.startsWith('image/')) {
+    throw new Error("শুধুমাত্র ইমেজ ফাইল (.jpg, .png, .webp, .gif, .svg) অনুমোদিত");
+  }
+
+  // Size limit (32MB max on ImgBB) on original file
   if (file.size > 32 * 1024 * 1024) {
     throw new Error("ছবির সাইজ ৩২ মেগাবাইট (32MB) এর বেশি হওয়া যাবে না");
+  }
+
+  // Client-side compression before network upload
+  const fileToUpload = await compressImageIfNeeded(file, { maxSide, onProgress });
+
+  if (typeof onProgress === 'function') {
+    onProgress('আপলোড হচ্ছে...');
   }
 
   const apiKey = await getImgBBApiKey();
@@ -65,7 +206,7 @@ export async function uploadImageToImgBB(file, onProgress) {
   }
 
   const formData = new FormData();
-  formData.append('image', file);
+  formData.append('image', fileToUpload);
 
   const endpoint = `https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`;
 

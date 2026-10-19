@@ -11,7 +11,8 @@ import {
   where,
   limit,
   orderBy, 
-  serverTimestamp 
+  serverTimestamp,
+  getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { 
   formatBDT, 
@@ -20,9 +21,47 @@ import {
   isSafeImageUrl, 
   parseYouTubeVideoId, 
   showToast, 
-  showConfirmDialog 
+  showConfirmDialog,
+  normalizeDownloadUrl
 } from './utils.js';
 import { getImgBBApiKey, setImgBBApiKey, uploadImageToImgBB } from './imgbb.js';
+
+/**
+ * Counts total purchases recorded for a specific product
+ * @param {string} productId 
+ * @returns {Promise<number>}
+ */
+export async function adminCountPurchasesForProduct(productId) {
+  if (!productId) return 0;
+  try {
+    const q = query(collection(db, 'purchases'), where('productId', '==', productId));
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch (err) {
+    try {
+      const q = query(collection(db, 'purchases'), where('productId', '==', productId), limit(1));
+      const snap = await getDocs(q);
+      return snap.empty ? 0 : 1;
+    } catch (e) {
+      console.warn("Could not check purchases count:", e?.message);
+      return 0;
+    }
+  }
+}
+
+/**
+ * Updates a product's status (active / inactive)
+ * @param {string} productId 
+ * @param {'active'|'inactive'} status 
+ */
+export async function adminSetProductStatus(productId, status) {
+  if (!productId) throw new Error("প্রোডাক্ট আইডি অনুপস্থিত");
+  const newStatus = status === 'active' ? 'active' : 'inactive';
+  await updateDoc(doc(db, 'products', productId), {
+    status: newStatus
+  });
+  return newStatus;
+}
 
 /**
  * Loads all products (active and inactive) for admin
@@ -60,7 +99,7 @@ export async function adminSaveProduct({
   images = [],
   youtubeUrl = '',
   status = 'active',
-  downloadUrl,
+  downloadUrl = '',
   fileName = '',
   category = 'other',
   fileSize = '',
@@ -120,6 +159,20 @@ export async function adminSaveProduct({
     }
   }
 
+  // Validate downloadUrl: Required for NEW products; on edit, empty means "keep existing link"
+  let validDownloadUrl = '';
+  if (!id && !cleanDownloadUrl) {
+    throw new Error("নতুন প্রোডাক্টের জন্য সিক্রেট ডাউনলোড লিংক দেওয়া বাধ্যতামূলক");
+  }
+
+  if (cleanDownloadUrl) {
+    const norm = normalizeDownloadUrl(cleanDownloadUrl);
+    validDownloadUrl = norm.url;
+    if (norm.converted) {
+      showToast('Google Drive লিংক সরাসরি ডাউনলোড লিংকে রূপান্তর করা হয়েছে', 'info');
+    }
+  }
+
   // Validate category
   const allowedCategories = ['ebook', 'ui', 'script', 'graphic', 'other'];
   const cleanCategory = allowedCategories.includes(category) ? category : 'other';
@@ -154,9 +207,10 @@ export async function adminSaveProduct({
   await setDoc(prodRef, productData, { merge: true });
 
   // 2. Save secure download link in productFiles/{pid}
-  if (cleanDownloadUrl) {
+  // Required on new; on edit, empty means keep existing link
+  if (validDownloadUrl) {
     await setDoc(doc(db, 'productFiles', pid), {
-      downloadUrl: cleanDownloadUrl,
+      downloadUrl: validDownloadUrl,
       fileName: (fileName || cleanName).trim(),
       updatedAt: serverTimestamp()
     });
@@ -179,9 +233,15 @@ export async function adminGetProductFile(productId) {
 }
 
 /**
- * Deletes product and associated productFiles
+ * Deletes product and associated productFiles.
+ * Defence-in-depth: Re-checks purchase count and throws error if purchases exist.
  */
 export async function adminDeleteProduct(productId) {
+  if (!productId) throw new Error("প্রোডাক্ট আইডি অনুপস্থিত");
+  const count = await adminCountPurchasesForProduct(productId);
+  if (count > 0) {
+    throw new Error(`এই প্রোডাক্টের ${count} টি ক্রয় আছে, তাই এটি ডিলিট করা যাবে না। ক্রেতারা যেন ফাইল ডাউনলোড করতে পারে সেজন্য প্রোডাক্টটি Inactive করা হবে।`);
+  }
   await deleteDoc(doc(db, 'products', productId));
   try {
     await deleteDoc(doc(db, 'productFiles', productId));

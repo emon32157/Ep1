@@ -16,7 +16,7 @@ service cloud.firestore {
     match /admins/{uid} { allow read, write: if false; }
 
     match /products/{pid} {
-      allow read: if resource.data.status == 'active' || isAdmin();
+      allow read: if resource.data.status == 'active' || isAdmin() || owns(pid);
       allow create, update: if isAdmin() && request.resource.data.price is number && request.resource.data.price > 0;
       allow delete: if isAdmin();
     }

@@ -424,7 +424,71 @@ export function showToast(message, type = 'info', duration = 4000) {
 }
 
 /**
+ * Normalizes and validates secret product download URL.
+ * Converts Google Drive view/open/uc links to direct download link:
+ * https://drive.google.com/uc?export=download&id=<ID>
+ * 
+ * @param {string} url 
+ * @returns {{ url: string, converted: boolean, toString: () => string }}
+ */
+export function normalizeDownloadUrl(url) {
+  if (!url || typeof url !== 'string') {
+    throw new Error('ডাউনলোড লিংক দিতে হবে');
+  }
+  const trimmed = url.trim();
+  if (trimmed.length > 500) {
+    throw new Error('ডাউনলোড লিংক সর্বোচ্চ ৫০০ অক্ষরের হতে পারে');
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(trimmed);
+  } catch (e) {
+    throw new Error('সঠিক ডাউনলোড URL প্রদান করুন');
+  }
+
+  // Reject javascript:, data:, http:, ftp:. Only https: allowed
+  if (parsed.protocol !== 'https:') {
+    throw new Error('ডাউনলোড লিংক অবশ্যই HTTPS প্রোটোকল হতে হবে (http, javascript, data বা ftp অনুমোদিত নয়)');
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'drive.google.com' || host === 'docs.google.com') {
+    let fileId = null;
+
+    // Pattern 1: /file/d/<ID>/view or /d/<ID>
+    const fileDMatch = parsed.pathname.match(/\/d\/([A-Za-z0-9_-]{10,})/);
+    if (fileDMatch) {
+      fileId = fileDMatch[1];
+    } else if (parsed.searchParams.has('id')) {
+      const idParam = parsed.searchParams.get('id');
+      if (idParam && /^[A-Za-z0-9_-]{10,}$/.test(idParam)) {
+        fileId = idParam;
+      }
+    }
+
+    if (!fileId || !/^[A-Za-z0-9_-]{10,}$/.test(fileId)) {
+      throw new Error('Google Drive লিংকে কোনো সঠিক ফাইল আইডি (ID) পাওয়া যায়নি');
+    }
+
+    const convertedUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    return {
+      url: convertedUrl,
+      converted: true,
+      toString() { return this.url; }
+    };
+  }
+
+  return {
+    url: trimmed,
+    converted: false,
+    toString() { return this.url; }
+  };
+}
+
+/**
  * Mobile-friendly Confirmation Modal Dialog
+ * Rendered strictly as textContent, supporting array of text lines.
  */
 export function showConfirmDialog({ title, message, confirmText = 'হ্যাঁ, মুছুন', cancelText = 'বাতিল', onConfirm }) {
   const overlay = document.createElement('div');
@@ -437,9 +501,18 @@ export function showConfirmDialog({ title, message, confirmText = 'হ্যা�
   h3.className = 'text-lg font-bold text-slate-900 dark:text-white';
   h3.textContent = title;
 
-  const p = document.createElement('p');
-  p.className = 'text-sm text-slate-600 dark:text-slate-300 leading-relaxed';
-  p.textContent = message;
+  const contentBox = document.createElement('div');
+  contentBox.className = 'space-y-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed';
+
+  const lines = Array.isArray(message)
+    ? message
+    : (typeof message === 'string' ? message.split('\n') : [String(message ?? '')]);
+
+  lines.forEach((line) => {
+    const p = document.createElement('p');
+    p.textContent = line;
+    contentBox.appendChild(p);
+  });
 
   const btnContainer = document.createElement('div');
   btnContainer.className = 'flex items-center justify-end gap-3 pt-3';
@@ -455,7 +528,7 @@ export function showConfirmDialog({ title, message, confirmText = 'হ্যা�
   confirmBtn.textContent = confirmText;
 
   cancelBtn.onclick = () => {
-    document.body.removeChild(overlay);
+    if (overlay.parentNode) document.body.removeChild(overlay);
   };
 
   confirmBtn.onclick = async () => {
@@ -474,7 +547,7 @@ export function showConfirmDialog({ title, message, confirmText = 'হ্যা�
   btnContainer.appendChild(confirmBtn);
 
   box.appendChild(h3);
-  box.appendChild(p);
+  box.appendChild(contentBox);
   box.appendChild(btnContainer);
   overlay.appendChild(box);
 
@@ -562,18 +635,20 @@ function removeMeta(selector) {
 }
 
 /**
- * Updates document.title, meta description, OpenGraph, Twitter tags and canonical link
+ * Updates document.title, meta description, robots, OpenGraph, Twitter tags and canonical link
  * @param {object} [options]
  * @param {string} [options.title]
  * @param {string} [options.description]
  * @param {string} [options.image]
+ * @param {boolean} [options.noindex]
  */
-export function setPageMeta({ title, description, image } = {}) {
+export function setPageMeta({ title, description, image, noindex = false } = {}) {
   const metaTitle = title ? String(title).trim() : DEFAULT_PAGE_TITLE;
   const metaDesc = description ? String(description).trim().slice(0, 200) : DEFAULT_PAGE_DESC;
 
   document.title = metaTitle;
 
+  setOrUpdateMeta('meta[name="robots"]', 'name', 'robots', noindex ? 'noindex, nofollow' : 'index, follow');
   setOrUpdateMeta('meta[name="description"]', 'name', 'description', metaDesc);
   setOrUpdateMeta('meta[property="og:title"]', 'property', 'og:title', metaTitle);
   setOrUpdateMeta('meta[property="og:description"]', 'property', 'og:description', metaDesc);
