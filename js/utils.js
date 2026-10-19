@@ -429,7 +429,7 @@ export function showToast(message, type = 'info', duration = 4000) {
  * https://drive.google.com/uc?export=download&id=<ID>
  * 
  * @param {string} url 
- * @returns {{ url: string, converted: boolean, toString: () => string }}
+ * @returns {string} The normalized direct download HTTPS URL
  */
 export function normalizeDownloadUrl(url) {
   if (!url || typeof url !== 'string') {
@@ -456,14 +456,22 @@ export function normalizeDownloadUrl(url) {
   if (host === 'drive.google.com' || host === 'docs.google.com') {
     let fileId = null;
 
-    // Pattern 1: /file/d/<ID>/view or /d/<ID>
-    const fileDMatch = parsed.pathname.match(/\/d\/([A-Za-z0-9_-]{10,})/);
-    if (fileDMatch) {
-      fileId = fileDMatch[1];
-    } else if (parsed.searchParams.has('id')) {
-      const idParam = parsed.searchParams.get('id');
-      if (idParam && /^[A-Za-z0-9_-]{10,}$/.test(idParam)) {
-        fileId = idParam;
+    if (host === 'drive.google.com') {
+      const fileDMatch = parsed.pathname.match(/\/d\/([A-Za-z0-9_-]{10,})/);
+      if (fileDMatch) {
+        fileId = fileDMatch[1];
+      } else if (parsed.searchParams.has('id')) {
+        const idParam = parsed.searchParams.get('id');
+        if (idParam && /^[A-Za-z0-9_-]{10,}$/.test(idParam)) {
+          fileId = idParam;
+        }
+      }
+    } else if (host === 'docs.google.com') {
+      if (parsed.pathname.startsWith('/file/d/')) {
+        const fileDMatch = parsed.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]{10,})/);
+        if (fileDMatch) {
+          fileId = fileDMatch[1];
+        }
       }
     }
 
@@ -471,20 +479,31 @@ export function normalizeDownloadUrl(url) {
       throw new Error('Google Drive লিংকে কোনো সঠিক ফাইল আইডি (ID) পাওয়া যায়নি');
     }
 
-    const convertedUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    return {
-      url: convertedUrl,
-      converted: true,
-      toString() { return this.url; }
-    };
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
   }
 
-  return {
-    url: trimmed,
-    converted: false,
-    toString() { return this.url; }
-  };
+  return trimmed;
 }
+
+/**
+ * Checks if the original URL was converted from a Google Drive or Docs URL to a direct uc download link
+ * @param {string} original 
+ * @param {string} normalized 
+ * @returns {boolean}
+ */
+export function isDriveUrlConverted(original, normalized) {
+  if (!original || !normalized || typeof original !== 'string' || typeof normalized !== 'string') {
+    return false;
+  }
+  try {
+    const parsed = new URL(original.trim());
+    const host = parsed.hostname.toLowerCase();
+    return (host === 'drive.google.com' || host === 'docs.google.com') && original.trim() !== normalized.trim();
+  } catch (e) {
+    return false;
+  }
+}
+
 
 /**
  * Mobile-friendly Confirmation Modal Dialog

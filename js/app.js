@@ -20,7 +20,8 @@ import {
   removeFromCart, 
   clearCart, 
   getCartProductDetails, 
-  subscribeCart 
+  subscribeCart,
+  updateCartBadge 
 } from './cart.js';
 import { 
   loadSliders, 
@@ -221,6 +222,63 @@ function renderHeader() {
   });
 }
 
+export function renderMobileBottomNav() {
+  const nav = document.getElementById('mobile-bottom-nav');
+  if (!nav) return;
+
+  const authState = getAuthState();
+  const user = authState.user;
+  const currentPath = window.location.pathname || '/';
+
+  const isHome = currentPath === '/';
+  const isProducts = currentPath === '/products' || currentPath.startsWith('/product/');
+  const isCart = currentPath === '/cart' || currentPath === '/checkout';
+  const isPurchases = currentPath === '/my-purchases';
+  const isProfile = currentPath === '/profile' || currentPath === '/login' || currentPath === '/register' || currentPath.startsWith('/admin');
+
+  nav.innerHTML = `
+    <a href="/" class="bottom-nav-item ${isHome ? 'active' : ''}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <span>হোম</span>
+    </a>
+
+    <a href="/products" class="bottom-nav-item ${isProducts ? 'active' : ''}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+      </svg>
+      <span>প্রোডাক্ট</span>
+    </a>
+
+    <a href="/cart" class="bottom-nav-item ${isCart ? 'active' : ''}">
+      <div class="relative">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+        </svg>
+        <span class="cart-count-badge hidden absolute -top-1 -right-2 bg-indigo-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">0</span>
+      </div>
+      <span>কার্ট</span>
+    </a>
+
+    <a href="${user ? '/my-purchases' : '/login?redirect=/my-purchases'}" class="bottom-nav-item ${isPurchases ? 'active' : ''}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      <span>পারচেজ</span>
+    </a>
+
+    <a href="${user ? '/profile' : '/login'}" class="bottom-nav-item ${isProfile ? 'active' : ''}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+      </svg>
+      <span>${user ? 'প্রোফাইল' : 'লগইন'}</span>
+    </a>
+  `;
+
+  updateCartBadge();
+}
+
 function renderEmailVerificationBanner() {
   const container = document.getElementById('email-verification-banner');
   if (!container) return;
@@ -401,6 +459,7 @@ async function renderFooter() {
 subscribeAuth(() => {
   renderHeader();
   renderEmailVerificationBanner();
+  renderMobileBottomNav();
 });
 
 // ==========================================
@@ -437,12 +496,12 @@ async function renderHomePage() {
         </div>
 
         <!-- Interactive Category Filter Tabs -->
-        <div class="flex items-center justify-center flex-wrap gap-2 pt-1 text-xs">
-          <button type="button" class="home-cat-tab active-cat px-3.5 py-1.5 rounded-xl font-semibold bg-indigo-600 text-white transition-all shadow-xs" data-cat="all">সব প্রোডাক্ট</button>
-          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all" data-cat="ebook">ই-বুক / PDF</button>
-          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all" data-cat="ui">UI কিট</button>
-          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all" data-cat="script">স্ক্রিপ্ট</button>
-          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all" data-cat="graphic">গ্রাফিক্স</button>
+        <div class="flex items-center justify-start sm:justify-center overflow-x-auto no-scrollbar py-1 gap-2 text-xs">
+          <button type="button" class="home-cat-tab active-cat px-3.5 py-1.5 rounded-xl font-semibold bg-indigo-600 text-white transition-all shadow-xs shrink-0" data-cat="all">সব প্রোডাক্ট</button>
+          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0" data-cat="ebook">ই-বুক / PDF</button>
+          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0" data-cat="ui">UI কিট</button>
+          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0" data-cat="script">স্ক্রিপ্ট</button>
+          <button type="button" class="home-cat-tab px-3.5 py-1.5 rounded-xl font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0" data-cat="graphic">গ্রাফিক্স</button>
         </div>
       </section>
 
@@ -458,15 +517,15 @@ async function renderHomePage() {
           </a>
         </div>
 
-        <!-- Responsive Grid: 1 col on small phones, 2 on >=480px, 3-4 on desktop -->
-        <div id="home-products-grid" class="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        <!-- Responsive Grid: 2 cols on mobile, 3-4 on desktop -->
+        <div id="home-products-grid" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
           <!-- Skeletons -->
           ${[1, 2, 3, 4].map(() => `
-            <div class="surface-card rounded-2xl p-4 space-y-3 h-full">
+            <div class="surface-card rounded-2xl p-3 sm:p-4 space-y-2 sm:space-y-3 h-full">
               <div class="skeleton aspect-16/10 rounded-xl"></div>
-              <div class="skeleton h-5 w-3/4 rounded-md"></div>
-              <div class="skeleton h-4 w-1/2 rounded-md"></div>
-              <div class="skeleton h-9 w-full rounded-xl mt-4"></div>
+              <div class="skeleton h-4 sm:h-5 w-3/4 rounded-md"></div>
+              <div class="skeleton h-3 sm:h-4 w-1/2 rounded-md hidden sm:block"></div>
+              <div class="skeleton h-8 sm:h-9 w-full rounded-xl mt-2 sm:mt-4"></div>
             </div>
           `).join('')}
         </div>
@@ -672,8 +731,8 @@ async function renderProductsPage() {
           <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">আপনার প্রয়োজনীয় প্রোডাক্টটি নির্বাচন করুন</p>
         </div>
 
-        <div class="flex items-center gap-3">
-          <div class="relative max-w-xs w-full">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div class="relative max-w-full sm:max-w-xs w-full">
             <input type="text" id="products-search-box" placeholder="প্রোডাক্ট খুঁজুন..." class="input-field pl-9 pr-3 py-2 text-sm rounded-xl">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
               <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -681,7 +740,7 @@ async function renderProductsPage() {
               </svg>
             </span>
           </div>
-          <select id="products-sort-select" class="input-field py-2 text-sm rounded-xl max-w-[170px]">
+          <select id="products-sort-select" class="input-field py-2 text-sm rounded-xl w-full sm:max-w-[170px]">
             <option value="newest">নতুনতম আগে</option>
             <option value="price-asc">মূল্য: কম থেকে বেশি</option>
             <option value="price-desc">মূল্য: বেশি থেকে কম</option>
@@ -689,14 +748,14 @@ async function renderProductsPage() {
         </div>
       </div>
 
-      <div id="products-catalog-grid" class="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+      <div id="products-catalog-grid" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
         <!-- Loading skeletons -->
         ${[1, 2, 3, 4, 5, 6, 7, 8].map(() => `
-          <div class="surface-card rounded-2xl p-4 space-y-3">
+          <div class="surface-card rounded-2xl p-3 sm:p-4 space-y-2 sm:space-y-3">
             <div class="skeleton aspect-4/3 rounded-xl"></div>
-            <div class="skeleton h-5 w-3/4 rounded-md"></div>
-            <div class="skeleton h-4 w-1/2 rounded-md"></div>
-            <div class="skeleton h-9 w-full rounded-xl"></div>
+            <div class="skeleton h-4 sm:h-5 w-3/4 rounded-md"></div>
+            <div class="skeleton h-3 sm:h-4 w-1/2 rounded-md hidden sm:block"></div>
+            <div class="skeleton h-8 sm:h-9 w-full rounded-xl"></div>
           </div>
         `).join('')}
       </div>
@@ -3302,7 +3361,7 @@ async function renderAdminProductsTab(container) {
           });
         }
       } catch (err) {
-        showToast(err.message || 'যাচাই ব্যর্থ হয়েছে', 'error');
+        showToast(err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.textContent = originalText;
@@ -3499,7 +3558,7 @@ async function renderAdminSalesTab(container) {
 
     showConfirmDialog({
       title: 'ম্যানুয়াল অ্যাক্সেস নিশ্চিতকরণ',
-      message: `আপনি কি "${escapeHtml(buyerEmail)}" ইউজারকে "${escapeHtml(prodName)}" প্রোডাক্টটির অ্যাক্সেস দিতে নিশ্চিত?`,
+      message: `আপনি কি "${buyerEmail}" ইউজারকে "${prodName}" প্রোডাক্টটির অ্যাক্সেস দিতে নিশ্চিত?`,
       confirmText: 'হ্যাঁ, অ্যাক্সেস দিন',
       onConfirm: async () => {
         const btn = document.getElementById('submit-manual-grant-btn');
@@ -4029,13 +4088,26 @@ async function renderAdminImgBBTab(container) {
       </form>
 
       <!-- Direct Image Upload Tool -->
-      <div class="surface-card p-6 rounded-2xl space-y-4">
+      <div id="generic-uploader-container" data-max-side="1600" class="surface-card p-6 rounded-2xl space-y-4">
         <h4 class="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">
           ২. সরাসরি ইমেজ আপলোড টুল
         </h4>
         <p class="text-xs text-slate-500">
           আপনার ফোন বা কম্পিউটার থেকে ছবি নির্বাচন করুন, সরাসরি ImgBB তে আপলোড হবে এবং নিরাপদ <code>https://i.ibb.co/</code> লিংক পাবেন।
         </p>
+
+        <!-- Context selection between product images (1600px) and slider banners (1920px) -->
+        <div class="flex items-center gap-4 text-xs font-semibold">
+          <span class="text-slate-600 dark:text-slate-400">ছবির ধরন:</span>
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-slate-300">
+            <input type="radio" name="upload-context-type" value="1600" checked class="text-indigo-600">
+            <span>প্রোডাক্ট ছবি (1600px)</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-slate-300">
+            <input type="radio" name="upload-context-type" value="1920" class="text-indigo-600">
+            <span>স্লাইডার ব্যানার (1920px)</span>
+          </label>
+        </div>
 
         <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center space-y-3">
           <input type="file" id="direct-image-file-input" accept="image/*" class="hidden">
@@ -4087,6 +4159,7 @@ async function renderAdminImgBBTab(container) {
   });
 
   // Direct upload handlers
+  const uploadContainer = document.getElementById('generic-uploader-container');
   const fileInput = document.getElementById('direct-image-file-input');
   const triggerBtn = document.getElementById('trigger-file-btn');
   const fileNameLabel = document.getElementById('selected-file-name');
@@ -4095,6 +4168,15 @@ async function renderAdminImgBBTab(container) {
   const previewImg = document.getElementById('uploaded-preview-img');
   const urlInput = document.getElementById('uploaded-url-input');
   const copyBtn = document.getElementById('copy-uploaded-url-btn');
+
+  document.querySelectorAll('input[name="upload-context-type"]').forEach((radio) => {
+    radio.addEventListener('change', (e) => {
+      const val = Number(e.target.value);
+      if (!isNaN(val) && val >= 400 && val <= 4000) {
+        uploadContainer?.setAttribute('data-max-side', String(val));
+      }
+    });
+  });
 
   triggerBtn?.addEventListener('click', () => fileInput?.click());
 
@@ -4110,9 +4192,11 @@ async function renderAdminImgBBTab(container) {
     if (resultBox) resultBox.classList.add('hidden');
 
     try {
+      const rawMaxSide = Number(uploadContainer?.getAttribute('data-max-side'));
+      const maxSide = (!isNaN(rawMaxSide) && rawMaxSide >= 400 && rawMaxSide <= 4000) ? rawMaxSide : 1600;
       const url = await uploadImageToImgBB(file, (msg) => {
         if (progressBox) progressBox.textContent = msg;
-      });
+      }, { maxSide });
       if (previewImg) previewImg.src = url;
       if (urlInput) urlInput.value = url;
       if (resultBox) resultBox.classList.remove('hidden');
@@ -4131,6 +4215,7 @@ async function renderAdminImgBBTab(container) {
     }
   });
 }
+
 
 // Admin Tab 5: TrxSync Transactions List (Read-only per specification)
 async function renderAdminTransactionsTab(container) {
@@ -4367,6 +4452,7 @@ export async function initApp() {
   initTheme();
   renderHeader();
   renderFooter();
+  renderMobileBottomNav();
 
   // Route Registrations (Clean URL routing with History API)
   registerRoute('/', renderHomePage);
@@ -4404,7 +4490,9 @@ export async function initApp() {
   initRouter();
 
   // Subscribe cart changes to update badges
-  subscribeCart(() => {});
+  subscribeCart(() => {
+    updateCartBadge();
+  });
 }
 
 // Start application when DOM is ready

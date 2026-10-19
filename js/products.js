@@ -391,29 +391,29 @@ export function createProductCard(product) {
 
   // Card Content Body
   const body = document.createElement('div');
-  body.className = 'p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3';
+  body.className = 'p-3 sm:p-5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3';
 
   const topContent = document.createElement('div');
-  topContent.className = 'space-y-1.5';
+  topContent.className = 'space-y-1 sm:space-y-1.5';
 
   // Metadata kicker with category badge, version, file size
   const metaKicker = document.createElement('div');
-  metaKicker.className = 'flex flex-wrap items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-semibold tracking-wide';
+  metaKicker.className = 'flex flex-wrap items-center gap-1 sm:gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-semibold tracking-wide';
   metaKicker.innerHTML = `
-    <span class="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[11px] font-bold">${escapeHtml(cat.tag)}</span>
-    ${product.version ? `<span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span><span class="text-slate-400 font-mono text-[11px]">v${escapeHtml(product.version)}</span>` : ''}
-    ${product.fileSize ? `<span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span><span class="text-slate-400 font-mono text-[11px]">${escapeHtml(product.fileSize)}</span>` : ''}
+    <span class="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[10px] sm:text-[11px] font-bold">${escapeHtml(cat.tag)}</span>
+    ${product.version ? `<span aria-hidden="true" class="text-slate-300 dark:text-slate-600 hidden sm:inline">·</span><span class="text-slate-400 font-mono text-[10px] sm:text-[11px] hidden sm:inline">v${escapeHtml(product.version)}</span>` : ''}
+    ${product.fileSize ? `<span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span><span class="text-slate-400 font-mono text-[10px] sm:text-[11px]">${escapeHtml(product.fileSize)}</span>` : ''}
   `;
 
   // Product Title (Fixed height container so price rows across grid align perfectly)
   const title = document.createElement('h3');
-  title.className = 'font-bold text-sm sm:text-base text-slate-900 dark:text-white line-clamp-2 leading-snug cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition h-[2.75rem] flex items-start';
+  title.className = 'font-bold text-xs sm:text-base text-slate-900 dark:text-white line-clamp-2 leading-snug cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition min-h-[2.2rem] sm:h-[2.75rem] flex items-start';
   title.textContent = product.name || 'ডিজিটাল প্রোডাক্ট';
   title.onclick = () => navigateTo(`/product/${product.id}`);
 
-  // Short description (Clamped)
+  // Short description (Hidden on phone for clean 2-col cards, visible on desktop)
   const desc = document.createElement('p');
-  desc.className = 'text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-[2.25rem] overflow-hidden';
+  desc.className = 'hidden sm:block text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-[2.25rem] overflow-hidden';
   desc.textContent = product.description ? product.description.replace(/[#*`_]/g, '') : '';
 
   topContent.appendChild(metaKicker);
@@ -422,17 +422,17 @@ export function createProductCard(product) {
 
   // Price & Actions (Pinned to bottom for perfect alignment)
   const bottomContent = document.createElement('div');
-  bottomContent.className = 'mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-3';
+  bottomContent.className = 'mt-auto pt-2 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2 sm:space-y-3';
 
   const priceRow = document.createElement('div');
   priceRow.className = 'flex items-baseline justify-between';
 
   const priceLabel = document.createElement('span');
-  priceLabel.className = 'text-[11px] text-slate-400 dark:text-slate-500 font-medium';
-  priceLabel.textContent = 'এককালীন মূল্য';
+  priceLabel.className = 'text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-medium';
+  priceLabel.textContent = 'মূল্য';
 
   const price = document.createElement('div');
-  price.className = 'text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 tracking-tight font-mono tabular-nums';
+  price.className = 'text-sm sm:text-lg font-black text-indigo-600 dark:text-indigo-400 tracking-tight font-mono tabular-nums';
   price.textContent = formatBDT(product.price);
 
   priceRow.appendChild(priceLabel);
@@ -440,13 +440,13 @@ export function createProductCard(product) {
 
   // Action Buttons
   const actionGrid = document.createElement('div');
-  actionGrid.className = 'grid grid-cols-2 gap-2 pt-1';
+  actionGrid.className = 'grid grid-cols-2 gap-1.5 sm:gap-2 pt-0.5 sm:pt-1';
 
   const cartBtn = document.createElement('button');
   cartBtn.type = 'button';
-  cartBtn.className = 'w-full py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1.5 active:scale-[0.98] min-h-[40px]';
+  cartBtn.className = 'w-full py-1.5 sm:py-2.5 px-1.5 sm:px-3 text-[11px] sm:text-sm font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition flex items-center justify-center gap-1 active:scale-[0.98] min-h-[36px] sm:min-h-[40px]';
   cartBtn.innerHTML = `
-    <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
     </svg>
     <span>কার্ট</span>
@@ -458,9 +458,9 @@ export function createProductCard(product) {
 
   const buyBtn = document.createElement('button');
   buyBtn.type = 'button';
-  buyBtn.className = 'w-full py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs hover:shadow-md transition flex items-center justify-center gap-1.5 active:scale-[0.98] min-h-[40px]';
+  buyBtn.className = 'w-full py-1.5 sm:py-2.5 px-1.5 sm:px-3 text-[11px] sm:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs hover:shadow-md transition flex items-center justify-center gap-1 active:scale-[0.98] min-h-[36px] sm:min-h-[40px]';
   buyBtn.innerHTML = `
-    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
     </svg>
     <span>কিনুন</span>

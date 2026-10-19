@@ -22,7 +22,8 @@ import {
   parseYouTubeVideoId, 
   showToast, 
   showConfirmDialog,
-  normalizeDownloadUrl
+  normalizeDownloadUrl,
+  isDriveUrlConverted
 } from './utils.js';
 import { getImgBBApiKey, setImgBBApiKey, uploadImageToImgBB } from './imgbb.js';
 
@@ -32,19 +33,22 @@ import { getImgBBApiKey, setImgBBApiKey, uploadImageToImgBB } from './imgbb.js';
  * @returns {Promise<number>}
  */
 export async function adminCountPurchasesForProduct(productId) {
-  if (!productId) return 0;
+  if (!productId || typeof productId !== 'string' || !productId.trim()) {
+    throw new Error("প্রোডাক্ট আইডি অনুপস্থিত");
+  }
+  const cleanId = productId.trim();
   try {
-    const q = query(collection(db, 'purchases'), where('productId', '==', productId));
+    const q = query(collection(db, 'purchases'), where('productId', '==', cleanId));
     const snapshot = await getCountFromServer(q);
     return snapshot.data().count;
   } catch (err) {
     try {
-      const q = query(collection(db, 'purchases'), where('productId', '==', productId), limit(1));
+      const q = query(collection(db, 'purchases'), where('productId', '==', cleanId), limit(1));
       const snap = await getDocs(q);
       return snap.empty ? 0 : 1;
-    } catch (e) {
-      console.warn("Could not check purchases count:", e?.message);
-      return 0;
+    } catch (fallbackErr) {
+      console.warn("Could not check purchases count:", fallbackErr?.message || fallbackErr);
+      throw new Error("ক্রয়ের সংখ্যা যাচাই করা সম্ভব হয়নি, তাই কোনো পরিবর্তন করা হয়নি। আবার চেষ্টা করুন।");
     }
   }
 }
@@ -166,9 +170,8 @@ export async function adminSaveProduct({
   }
 
   if (cleanDownloadUrl) {
-    const norm = normalizeDownloadUrl(cleanDownloadUrl);
-    validDownloadUrl = norm.url;
-    if (norm.converted) {
+    validDownloadUrl = normalizeDownloadUrl(cleanDownloadUrl);
+    if (isDriveUrlConverted(cleanDownloadUrl, validDownloadUrl)) {
       showToast('Google Drive লিংক সরাসরি ডাউনলোড লিংকে রূপান্তর করা হয়েছে', 'info');
     }
   }

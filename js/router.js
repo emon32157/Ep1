@@ -69,6 +69,15 @@ export function handleRoute() {
     }
   });
 
+  // Update active state on mobile bottom nav items
+  document.querySelectorAll('#mobile-bottom-nav .bottom-nav-item').forEach((link) => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+    const cleanHref = href.split('?')[0];
+    const isAct = cleanHref === currentPath || (cleanHref !== '/' && currentPath.startsWith(cleanHref));
+    link.classList.toggle('active', isAct);
+  });
+
   // Find matching route
   for (const route of routes) {
     const match = currentPath.match(route.regex);

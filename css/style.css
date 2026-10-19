@@ -231,3 +231,155 @@ html.dark .product-card:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* Desktop: Mobile bottom navigation is strictly hidden */
+#mobile-bottom-nav {
+  display: none;
+}
+
+/* ==========================================
+   Mobile-Specific Design (< 768px) per Reference
+   ========================================== */
+@media (max-width: 767px) {
+  /* Safe padding for bottom navigation */
+  #app-main {
+    padding-bottom: 5.5rem;
+  }
+
+  /* Floating WhatsApp position on mobile */
+  #floating-whatsapp-btn {
+    bottom: 4.75rem !important;
+    left: 1rem !important;
+    padding: 0.75rem !important;
+    z-index: 45 !important;
+  }
+
+  /* Adjust Toast position on mobile to not obscure bottom nav */
+  #toast-container {
+    bottom: 4.75rem !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* Fixed Bottom Navigation Bar */
+  #mobile-bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 60px;
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 16px -2px rgba(0, 0, 0, 0.06);
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+
+  html.dark #mobile-bottom-nav {
+    box-shadow: 0 -4px 20px -2px rgba(0, 0, 0, 0.4);
+    background-color: rgba(19, 27, 46, 0.95);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    min-width: 60px;
+    position: relative;
+  }
+
+  html.dark .bottom-nav-item {
+    color: #94a3b8;
+  }
+
+  .bottom-nav-item.active {
+    color: #10b981;
+    font-weight: 700;
+  }
+
+  html.dark .bottom-nav-item.active {
+    color: #34d399;
+  }
+
+  .bottom-nav-item.active svg {
+    transform: scale(1.08);
+  }
+
+  /* Emerald Green Action Button matching reference */
+  .btn-emerald {
+    background-color: #10b981;
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 0.75rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 6px 0 rgba(16, 185, 129, 0.25);
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-emerald:hover:not(:disabled) {
+    background-color: #059669;
+  }
+
+  .btn-emerald:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  /* Purple Secondary Action Button matching reference */
+  .btn-purple {
+    background-color: #7c3aed;
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 0.75rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 6px 0 rgba(124, 58, 237, 0.25);
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-purple:hover:not(:disabled) {
+    background-color: #6d28d9;
+  }
+
+  .btn-purple:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  /* bKash Branded Mobile Card */
+  .bkash-card {
+    background: linear-gradient(135deg, #e2136e 0%, #b80d57 100%);
+    color: #ffffff;
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 25px -5px rgba(226, 19, 110, 0.35);
+  }
+
+  /* Nagad Branded Mobile Card */
+  .nagad-card {
+    background: linear-gradient(135deg, #e31018 0%, #f7941d 100%);
+    color: #ffffff;
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 25px -5px rgba(227, 16, 24, 0.35);
+  }
+
+  /* Touch Targets */
+  .touch-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
