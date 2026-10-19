@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function verified() { return signedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function owns(pid) {
+      return signedIn() && exists(/databases/$(database)/documents/purchases/$(request.auth.uid + '_' + pid));
+    }
+    function trxPath(trxId) { return /databases/$(database)/documents/transactions/$(trxId); }
+    function productPath(pid) { return /databases/$(database)/documents/products/$(pid); }
+
+    match /admins/{uid} { allow read, write: if false; }
+
+    match /products/{pid} {
+      allow read: if resource.data.status == 'active' || isAdmin();
+      allow create, update: if isAdmin() && request.resource.data.price is number && request.resource.data.price > 0;
+      allow delete: if isAdmin();
+    }
+
+    match /productFiles/{pid} {
+      allow get: if isAdmin() || owns(pid);
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /sliders/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /config/payment { allow read: if true; allow write: if isAdmin(); }
+    match /config/imgbb { allow read, write: if isAdmin(); }
+    match /config/site { allow read: if true; allow write: if isAdmin(); }
+
+    match /users/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name','email','phone','createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 100
+        && (!('phone' in request.resource.data) || (request.resource.data.phone is string && request.resource.data.phone.size() <= 20));
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','phone'])
+        && (!('name' in request.resource.data.diff(resource.data).affectedKeys()) || (request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 100))
+        && (!('phone' in request.resource.data.diff(resource.data).affectedKeys()) || (request.resource.data.phone is string && request.resource.data.phone.size() <= 20));
+    }
+
+    match /carts/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid
+        && (request.method == 'delete' || (
+          request.resource.data.keys().hasOnly(['items','updatedAt'])
+          && request.resource.data.items is list
+          && request.resource.data.items.size() <= 50));
+    }
+
+    match /contactMessages/{id} {
+      allow create: if verified()
+        && request.resource.data.keys().hasOnly(['name','email','message','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 100
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.message is string && request.resource.data.message.size() >= 1 && request.resource.data.message.size() <= 2000
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if isAdmin();
+    }
+
+    function linkedTrx(trxId, pid) {
+      return getAfter(trxPath(trxId)).data.lastProductId == pid
+        && getAfter(trxPath(trxId)).data.claimedBy == request.auth.uid
+        && getAfter(trxPath(trxId)).data.spent > get(trxPath(trxId)).data.get('spent', 0);
+    }
+
+    match /purchases/{purchaseId} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create: if (verified()
+        && request.resource.data.keys().hasOnly(['uid','productId','trxId','payerNumber','price','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && purchaseId == request.auth.uid + '_' + request.resource.data.productId
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.payerNumber is string
+        && request.resource.data.payerNumber.matches('^01[3-9][0-9]{8}$')
+        && get(productPath(request.resource.data.productId)).data.status == 'active'
+        && request.resource.data.price == get(productPath(request.resource.data.productId)).data.price
+        && linkedTrx(request.resource.data.trxId, request.resource.data.productId))
+        || (isAdmin()
+        && request.resource.data.keys().hasOnly(['uid','productId','trxId','payerNumber','price','createdAt','grantedByAdmin'])
+        && purchaseId == request.resource.data.uid + '_' + request.resource.data.productId
+        && request.resource.data.price is number
+        && request.resource.data.createdAt == request.time);
+      allow update, delete: if isAdmin();
+    }
+
+    function claimOk(trxId) {
+      let after = request.resource.data;
+      let before = resource.data;
+      let pid = after.lastProductId;
+      let product = get(productPath(pid)).data;
+      let purchase = getAfter(/databases/$(database)/documents/purchases/$(request.auth.uid + '_' + pid));
+      return verified()
+        && product.status == 'active'
+        && after.diff(before).affectedKeys().hasOnly(['spent','claimedBy','lastProductId','lastClaimAt'])
+        && after.claimedBy == request.auth.uid
+        && before.get('claimedBy', request.auth.uid) == request.auth.uid
+        && after.spent == before.get('spent', 0) + product.price
+        && after.spent <= before.amount
+        && after.lastClaimAt == request.time
+        && purchase.data.trxId == trxId
+        && purchase.data.payerNumber == before.sender
+        && !exists(/databases/$(database)/documents/purchases/$(request.auth.uid + '_' + pid));
+    }
+
+    match /transactions/{trxId} {
+      allow read, create, delete: if isAdmin();
+      allow update: if isAdmin() || claimOk(trxId);
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

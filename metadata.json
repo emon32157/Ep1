@@ -1,0 +1,6 @@
+{
+  "name": "E Product Hub",
+  "description": "একটি আধুনিক, নিরাপদ ও স্বয়ংক্রিয় ডিজিটাল প্রোডাক্ট স্টোর - E Product Hub",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

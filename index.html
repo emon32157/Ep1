@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="bn" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>E Product Hub - ডিজিটাল প্রোডাক্ট স্টোর</title>
+    <meta name="description" content="একটি আধুনিক, নিরাপদ ও স্বয়ংক্রিয় ডিজিটাল প্রোডাক্ট স্টোর - E Product Hub" />
+    <meta property="og:title" content="E Product Hub - ডিজিটাল প্রোডাক্ট স্টোর" />
+    <meta property="og:description" content="একটি আধুনিক, নিরাপদ ও স্বয়ংক্রিয় ডিজিটাল প্রোডাক্ট স্টোর - E Product Hub" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts: Hind Siliguri & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/css/style.css" />
+
+
+  </head>
+  <body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-['Hind_Siliguri',sans-serif] antialiased selection:bg-indigo-500 selection:text-white">
+    
+    <!-- Email Verification Alert Banner -->
+    <div id="email-verification-banner" class="hidden"></div>
+
+    <!-- Application Top Navigation Bar -->
+    <header id="app-header" class="sticky top-0 z-40 bg-white/90 dark:bg-[#151d2f]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors duration-200"></header>
+
+    <!-- Main Dynamic SPA Route Container -->
+    <main id="app-main" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8"></main>
+
+    <!-- Application Footer -->
+    <footer id="app-footer" class="border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#151d2f]/60 mt-auto transition-colors duration-200"></footer>
+
+    <!-- Toast Notifications Root Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Main Application Module -->
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
